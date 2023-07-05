@@ -1,0 +1,15 @@
+attrs==23.1.0
+black==23.3.0
+click==8.1.3
+Faker==18.11.2
+inflection==0.5.1
+jsonschema==4.17.3
+mypy-extensions==1.0.0
+openapi==1.1.0
+packaging==23.1
+pathspec==0.11.1
+platformdirs==3.8.0
+psycopg2==2.9.6
+pyrsistent==0.19.3
+python-dateutil==2.8.2
+six==1.16.0
