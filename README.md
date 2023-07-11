@@ -27,7 +27,7 @@ GPT-3 self choose the chart type and prepare the data for it (it is not perfect,
 1. Install docker in local.
 2. Set environment variables in `.env` file in project root or in your system/
 3. Run command `docker-compose up --build -d`.
-4. List docker container `docker ps` and get CONTAINER ID I.E `b13d03ee9dd8`.
+4. List docker container `docker ps` and get CONTAINER ID I.E `b13d03ee9dd8` from `gpt-sql-box-app` IMAGES.
 5. Connect to docker container and generate fake data `docker exec -it b13d03ee9dd8 sh` note that `b13d03ee9dd8` can be different.
 6. Run command `cd app` then `python gen_data.py` then type `exit`.
 7. Open `http://localhost:8000` in your browser.
