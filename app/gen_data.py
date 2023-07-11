@@ -3,8 +3,14 @@ import psycopg2
 import random
 from uuid import uuid4
 from datetime import datetime, timedelta
+import os
 # Connect to the database
-db = psycopg2.connect(host="localhost", user="lavendermp", database="chatgpt_sql")
+db = psycopg2.connect(
+    user=os.environ['POSTGRES_USER'],
+    password=os.environ['POSTGRES_PASSWORD'],
+    host=os.environ['POSTGRES_HOST'],
+    database=os.environ['POSTGRES_DB']
+    )
 cursor = db.cursor()
 
 # Create Faker instance
