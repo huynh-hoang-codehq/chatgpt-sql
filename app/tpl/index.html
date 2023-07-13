@@ -245,12 +245,12 @@
 							<table class="table table-striped">
 								<thead>
 									<tr>
-										<th v-for="col in column_names">[[col]]</th>
+										<th v-for="col in column_names" v-bind:key="col"><span v-html="col"></span></th>
 									</tr>
 								</thead>
 								<tbody>
-									<tr v-for="row in results">
-										<td v-for="col in column_names">[[ row[col] ]]</td>
+									<tr v-for="row in results" v-bind:key="row.id">
+										<td v-for="col in column_names" v-bind:key="col"><span v-html="row[col]"></span></td>
 									</tr>
 								</tbody>
 							</table>
