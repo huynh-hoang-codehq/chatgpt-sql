@@ -1,5 +1,7 @@
 psycopg2-binary
+numpy
 flask
 openai
 faker
 langchain
+tiktoken

@@ -1,5 +1,15 @@
-Given an input question, respond with syntactically correct PostgreSQL. Be creative but the SQL must be correct, not nessesary to use all tables. {regen_schema}
+Given an input question, first create a syntactically correct {dialect} query to run within limit of 5 rows, and return the answer.
+Use the following format:
 
-Instructions: {user_input}
+Question: "Question here"
+SQLQuery: "SQL Query to run"
+SQLResult: "Result of the SQLQuery"
+Answer: "Final answer here"
 
-SQL: 
+Only use the following tables:
+
+{table_info}
+
+If someone asks for the table foobar, they really mean the employee table.
+
+Question: {input}

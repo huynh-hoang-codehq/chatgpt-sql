@@ -7,6 +7,8 @@ import psycopg2
 import openai
 from flask import Flask, request, render_template
 from schema import Schema
+from langchain.prompts.prompt import PromptTemplate
+from langchain import OpenAI, SQLDatabase, SQLDatabaseChain
 
 app = Flask(__name__, template_folder='tpl')
 
@@ -75,40 +77,35 @@ def generate():
         user_input = content['query']
         query_temperture = content['temp']
         selected = content['selected']
-        print('Selected tables:', selected)
-        print('User input:', user_input)
-        print('Query temperture:', query_temperture)
 
         openai.api_key = request.api_key
         regen_schema = schema.regen(selected)
-        fprompt = load_prompt('sql').replace('{regen_schema}', regen_schema).replace('{user_input}', user_input)
+        fprompt = load_prompt('sql')
         # Edit prompt on the fly by editing prompts/sql.txt
-        print(f'Final prompt: {fprompt}')
 
         # Ask GPT-3
-        gpt_response = openai.Completion.create(
-            engine=OPENAI_ENGINE,
-            prompt=fprompt,
-            temperature=float(query_temperture),
-            max_tokens=500,
-            top_p=1,
-            frequency_penalty=0,
-            presence_penalty=0,
-            stop=["\n\n"]
+        # PROMPT = PromptTemplate(
+        #     input_variables=["input", "table_info", "dialect"], template=fprompt
+        # )
+        API_KEY = os.getenv('OPENAI_TOKEN')
+        db = SQLDatabase.from_uri(
+            f"postgresql+psycopg2://{os.environ['POSTGRES_USER']}:{os.environ['POSTGRES_PASSWORD']}@{os.environ['POSTGRES_HOST']}:5432/{os.environ['POSTGRES_DB']}"
         )
+        llm = OpenAI(model_name="text-davinci-003", openai_api_key=API_KEY, temperature=0)
+        db_chain = SQLDatabaseChain.from_llm(llm, db, verbose=True, use_query_checker=True, return_intermediate_steps=True, return_direct=True)
+        print(f'user_input: {user_input}')
+        gpt_response = db_chain(user_input)
 
-        used_tokens = gpt_response['usage']['total_tokens']
-
-        # Get SQL query
-        sql_query = gpt_response['choices'][0]['text']
+        for obj in gpt_response['intermediate_steps']:
+            if isinstance(obj, dict) and 'sql_cmd' in obj:
+                sql_query = obj['sql_cmd']
         sql_query = sql_query.lstrip().rstrip()
-        print('Generated SQL query:', sql_query)
 
         # Return json
         return {
             'success': True,
             'sql_query': sql_query,
-            'used_tokens': used_tokens,
+            'used_tokens': 0,
         }
     except Exception as err:
         print(err)
