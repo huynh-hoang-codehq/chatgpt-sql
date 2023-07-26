@@ -84,15 +84,16 @@ def generate():
         # Edit prompt on the fly by editing prompts/sql.txt
 
         # Ask GPT-3
-        # PROMPT = PromptTemplate(
-        #     input_variables=["input", "table_info", "dialect"], template=fprompt
-        # )
+        PROMPT = PromptTemplate(
+            input_variables=["input", "table_info", "dialect", "top_k"], template=fprompt
+        )
+        print(f'PROMPT: {PROMPT}')
         API_KEY = os.getenv('OPENAI_TOKEN')
         db = SQLDatabase.from_uri(
             f"postgresql+psycopg2://{os.environ['POSTGRES_USER']}:{os.environ['POSTGRES_PASSWORD']}@{os.environ['POSTGRES_HOST']}:5432/{os.environ['POSTGRES_DB']}"
         )
         llm = OpenAI(model_name="text-davinci-003", openai_api_key=API_KEY, temperature=0)
-        db_chain = SQLDatabaseChain.from_llm(llm, db, verbose=True, use_query_checker=True, return_intermediate_steps=True, return_direct=True)
+        db_chain = SQLDatabaseChain.from_llm(llm, db, prompt=PROMPT, verbose=True, use_query_checker=True, return_intermediate_steps=True, return_direct=False)
         print(f'user_input: {user_input}')
         gpt_response = db_chain(user_input)
 

@@ -7,7 +7,7 @@ EXPOSE 8000
 RUN apk update
 RUN apk add make automake gcc g++ subversion python3-dev
 RUN pip install --upgrade pip
-RUN pip install -r /code/requirement.txt
+RUN pip install --no-cache-dir --upgrade -r /code/requirement.txt
 
 COPY ./app /code/app
 ENV FLASK_APP=app
