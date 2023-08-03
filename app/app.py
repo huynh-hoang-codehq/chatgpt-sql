@@ -5,10 +5,14 @@ import sys
 import time
 import psycopg2
 import openai
+import re
+
 from flask import Flask, request, render_template
 from schema import Schema
 from langchain.prompts.prompt import PromptTemplate
 from langchain import OpenAI, SQLDatabase, SQLDatabaseChain
+
+from db_helper import execute_query
 
 app = Flask(__name__, template_folder='tpl')
 
@@ -80,26 +84,75 @@ def generate():
 
         openai.api_key = request.api_key
         regen_schema = schema.regen(selected)
-        fprompt = load_prompt('sql')
-        # Edit prompt on the fly by editing prompts/sql.txt
+        fprompt = load_prompt('sql_llm')
+        # Edit prompt on the fly by editing prompts/sql_llm.txt
 
         # Ask GPT-3
         PROMPT = PromptTemplate(
             input_variables=["input", "table_info", "dialect", "top_k"], template=fprompt
         )
-        print(f'PROMPT: {PROMPT}')
         API_KEY = os.getenv('OPENAI_TOKEN')
         db = SQLDatabase.from_uri(
             f"postgresql+psycopg2://{os.environ['POSTGRES_USER']}:{os.environ['POSTGRES_PASSWORD']}@{os.environ['POSTGRES_HOST']}:5432/{os.environ['POSTGRES_DB']}"
         )
         llm = OpenAI(model_name="text-davinci-003", openai_api_key=API_KEY, temperature=0)
-        db_chain = SQLDatabaseChain.from_llm(llm, db, prompt=PROMPT, verbose=True, use_query_checker=True, return_intermediate_steps=True, return_direct=False)
-        print(f'user_input: {user_input}')
-        gpt_response = db_chain(user_input)
+        db_chain = SQLDatabaseChain.from_llm(
+            llm, db, prompt=PROMPT, verbose=True, use_query_checker=True, return_intermediate_steps=True,
+            return_direct=False, top_k=5
+        )
+        err_flag = False
+        try:
+            gpt_response = db_chain(user_input)
+        except:  # self correct with version chatgpt v3
+            err_flag = True
+            regen_schema = schema.regen(selected)
+            fprompt = load_prompt('sql').replace('{regen_schema}', regen_schema).replace('{user_input}', user_input)
+            gpt_response = openai.Completion.create(
+            engine=OPENAI_ENGINE,
+            prompt=fprompt,
+            temperature=0,
+            max_tokens=1000,
+            top_p=1,
+            frequency_penalty=0,
+            presence_penalty=0,
+            stop=["\n\n"]
+        )
+            used_tokens = gpt_response['usage']['total_tokens']
 
-        for obj in gpt_response['intermediate_steps']:
-            if isinstance(obj, dict) and 'sql_cmd' in obj:
-                sql_query = obj['sql_cmd']
+            # Get SQL query
+            sql_query = gpt_response['choices'][0]['text']
+            sql_query = sql_query.lstrip().rstrip()
+            
+
+        if not err_flag:
+            for obj in gpt_response['intermediate_steps']:
+                if isinstance(obj, dict) and 'sql_cmd' in obj:
+                    sql_query = obj['sql_cmd']
+        else:  # check if sql is correct
+            results = execute_query(sql_query)
+
+            # incorrect sql
+            if not results['success'] and results.get('error') is None:
+                prompt = """
+                correct this sql query
+                {sql_query}
+                and then outline the correct query in code block"""
+                prompt = prompt.format(sql_query=sql_query)
+                response = openai.ChatCompletion.create(
+                    model="gpt-3.5-turbo",
+                    messages=[
+                        {"role": "system", "content": "You are a helpful assistant."},
+                        {"role": "user", "content": prompt},
+                    ],
+                    temperature=0
+                )
+                content = response.get('choices', [])[0].get('message', {}).get('content')
+                matches = [m.group(1) for m in re.finditer("```([\w\W]*?)```", content)]
+                sql_query = matches[0]      
+            elif not results['success'] and results.get('error'):
+                return results
+
+        print('Generated SQL query:', sql_query)
         sql_query = sql_query.lstrip().rstrip()
 
         # Return json
@@ -145,6 +198,7 @@ def execute():
             'results': results,
             'seconds_elapsed': seconds_elapsed
         }
+
     except psycopg2.Error as err:
         print(err)
         return {
