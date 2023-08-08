@@ -148,7 +148,8 @@ def generate():
                 )
                 content = response.get('choices', [])[0].get('message', {}).get('content')
                 matches = [m.group(1) for m in re.finditer("```([\w\W]*?)```", content)]
-                sql_query = matches[0]      
+                sql_query = matches[0]
+                sql_query = sql_query.replace('sql', '')
             elif not results['success'] and results.get('error'):
                 return results
 
